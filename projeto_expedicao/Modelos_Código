@@ -1,0 +1,498 @@
+Modelos_Código
+
+Você quer criar um pipeline diário que:
+
+Recebe arquivos Excel do CISS diariamente.
+
+Processa cada arquivo em Python, criando um DataFrame.
+
+Adiciona uma coluna com a data de geração do arquivo.
+
+Insere os dados em um Google Sheet existente, acumulando histórico.
+
+Mantém o histórico apenas por 12 meses, deletando o mês mais antigo automaticamente.
+
+Vou fazer duas abordagens, como você pediu:
+
+Parte 1: Jupyter Notebook – Simulação de Cientista de Dados
+
+Aqui, simulamos o processo como seria feito passo a passo em um notebook.
+
+# Importando bibliotecas
+import pandas as pd
+import datetime
+import gspread
+from gspread_dataframe import set_with_dataframe
+
+# --- SIMULAÇÃO: carregando um arquivo Excel ---
+# Substitua 'relatorio.xlsx' pelo seu arquivo real
+arquivo_excel = "relatorio.xlsx"
+df = pd.read_excel(arquivo_excel)
+
+# --- ADICIONANDO COLUNA DE DATA ---
+data_hoje = datetime.date.today()
+df['data_geracao'] = data_hoje
+
+# --- CONECTANDO AO GOOGLE SHEET ---
+# Pré-requisito: credenciais JSON da API do Google Sheets
+gc = gspread.service_account(filename='credenciais.json')
+
+# Abrindo planilha pelo nome
+sheet = gc.open("Base_CISS").sheet1
+
+# Lendo planilha existente para DataFrame
+historico = pd.DataFrame(sheet.get_all_records())
+
+# --- CONCATENANDO NOVOS DADOS ---
+historico = pd.concat([historico, df], ignore_index=True)
+
+# --- MANTENDO APENAS ÚLTIMOS 12 MESES ---
+# Considerando que 'data_geracao' é datetime.date
+historico['data_geracao'] = pd.to_datetime(historico['data_geracao'])
+um_ano_atras = datetime.date.today() - pd.DateOffset(months=12)
+historico = historico[historico['data_geracao'] >= um_ano_atras]
+
+# --- ATUALIZANDO GOOGLE SHEET ---
+sheet.clear()  # limpa os dados existentes
+set_with_dataframe(sheet, historico)  # insere o dataframe atualizado
+
+print("Google Sheet atualizado com sucesso!")
+
+
+✅ Esse código cobre todas as etapas: leitura do Excel, adição de data, atualização do Google Sheet e manutenção de histórico de 12 meses.
+
+Parte 2: Transformando em função .py
+
+Quando transformamos para .py, queremos que o código seja modular, reutilizável e automatizável.
+
+# arquivo: atualizar_base_ciss.py
+
+import pandas as pd
+import datetime
+import gspread
+from gspread_dataframe import set_with_dataframe
+
+def atualizar_base_ciss(arquivo_excel, nome_planilha, credenciais_json):
+    """
+    Atualiza a base do Google Sheet com os dados do Excel.
+    Mantém histórico apenas dos últimos 12 meses.
+    
+    Parâmetros:
+        arquivo_excel (str): Caminho do arquivo Excel.
+        nome_planilha (str): Nome da planilha do Google Sheet.
+        credenciais_json (str): Caminho do JSON de credenciais da API.
+    """
+    # --- Lendo Excel ---
+    df = pd.read_excel(arquivo_excel)
+
+    # --- Adicionando coluna de data ---
+    data_hoje = datetime.date.today()
+    df['data_geracao'] = data_hoje
+
+    # --- Conectando ao Google Sheet ---
+    gc = gspread.service_account(filename=credenciais_json)
+    sheet = gc.open(nome_planilha).sheet1
+
+    # --- Lendo planilha existente ---
+    historico = pd.DataFrame(sheet.get_all_records())
+
+    # --- Concatenando novos dados ---
+    historico = pd.concat([historico, df], ignore_index=True)
+
+    # --- Mantendo apenas últimos 12 meses ---
+    historico['data_geracao'] = pd.to_datetime(historico['data_geracao'])
+    um_ano_atras = pd.Timestamp.today() - pd.DateOffset(months=12)
+    historico = historico[historico['data_geracao'] >= um_ano_atras]
+
+    # --- Atualizando Google Sheet ---
+    sheet.clear()
+    set_with_dataframe(sheet, historico)
+
+    print(f"Google Sheet '{nome_planilha}' atualizado com sucesso!")
+
+# --- EXEMPLO DE USO ---
+# atualizar_base_ciss("relatorio.xlsx", "Base_CISS", "credenciais.json")
+
+✅ Diferenças entre notebook e .py:
+
+Notebook: etapas explícitas, visuais, ideal para exploração.
+
+.py: tudo encapsulado em função, fácil de automatizar via scheduler (ex: cron job, Windows Task Scheduler).
+
+Variáveis globais viram parâmetros da função.
+
+O print final indica sucesso sem depender de células do notebook.
+
+Se você quiser, posso criar uma versão ainda mais robusta, que:
+
+detecta automaticamente novos arquivos na pasta diária,
+
+cria a coluna de data com base na data do arquivo se não for o dia de hoje,
+
+e mantém histórico sempre limpo sem precisar limpar o sheet manualmente.
+
+Quer que eu faça essa versão automatizada?
+
+Você disse:
+Esqueci uma coisa.
+
+vamos dar uma interface em streamlit para que possa selecionar a data da geração do código e mostrar que o arquivo foi carregado, pode ser? Da mesma forma como ipynb e py.
+O ChatGPT disse:
+
+Perfeito! ✅ Podemos estender o código para o Streamlit, criando uma interface simples onde o usuário:
+
+Seleciona o arquivo Excel.
+
+Escolhe a data de geração (pode ser hoje ou outra data).
+
+Carrega os dados no Google Sheet.
+
+Mostra uma mensagem de confirmação.
+
+Vou fazer em três etapas, como antes: notebook, função .py, e Streamlit.
+
+Parte 1: Notebook com interface simulada (input)
+import pandas as pd
+import datetime
+import gspread
+from gspread_dataframe import set_with_dataframe
+
+# --- SIMULANDO INPUT DO USUÁRIO ---
+arquivo_excel = input("Informe o caminho do arquivo Excel: ")
+data_input = input("Informe a data de geração (AAAA-MM-DD) ou deixe em branco para hoje: ")
+
+if data_input.strip() == "":
+    data_geracao = datetime.date.today()
+else:
+    data_geracao = pd.to_datetime(data_input).date()
+
+# --- Lendo Excel ---
+df = pd.read_excel(arquivo_excel)
+
+# --- Adicionando coluna de data ---
+df['data_geracao'] = data_geracao
+
+# --- Conectando ao Google Sheet ---
+gc = gspread.service_account(filename='credenciais.json')
+sheet = gc.open("Base_CISS").sheet1
+
+# --- Lendo planilha existente ---
+historico = pd.DataFrame(sheet.get_all_records())
+
+# --- Concatenando e mantendo últimos 12 meses ---
+historico = pd.concat([historico, df], ignore_index=True)
+historico['data_geracao'] = pd.to_datetime(historico['data_geracao'])
+um_ano_atras = pd.Timestamp.today() - pd.DateOffset(months=12)
+historico = historico[historico['data_geracao'] >= um_ano_atras]
+
+# --- Atualizando Google Sheet ---
+sheet.clear()
+set_with_dataframe(sheet, historico)
+
+print(f"Arquivo '{arquivo_excel}' carregado com sucesso para {data_geracao}!")
+
+Parte 2: Função .py
+# atualizar_base_ciss.py
+
+import pandas as pd
+import datetime
+import gspread
+from gspread_dataframe import set_with_dataframe
+
+def atualizar_base_ciss(arquivo_excel, nome_planilha, credenciais_json, data_geracao=None):
+    """
+    Atualiza a base do Google Sheet com os dados do Excel.
+    
+    Parâmetros:
+        arquivo_excel (str): Caminho do arquivo Excel.
+        nome_planilha (str): Nome da planilha do Google Sheet.
+        credenciais_json (str): Caminho do JSON de credenciais da API.
+        data_geracao (str ou datetime.date, opcional): Data da geração do arquivo.
+    """
+    # --- Lendo Excel ---
+    df = pd.read_excel(arquivo_excel)
+
+    # --- Definindo data ---
+    if data_geracao is None:
+        data_geracao = datetime.date.today()
+    else:
+        data_geracao = pd.to_datetime(data_geracao).date()
+    
+    df['data_geracao'] = data_geracao
+
+    # --- Conectando ao Google Sheet ---
+    gc = gspread.service_account(filename=credenciais_json)
+    sheet = gc.open(nome_planilha).sheet1
+
+    # --- Lendo planilha existente ---
+    historico = pd.DataFrame(sheet.get_all_records())
+
+    # --- Concatenando e mantendo últimos 12 meses ---
+    historico = pd.concat([historico, df], ignore_index=True)
+    historico['data_geracao'] = pd.to_datetime(historico['data_geracao'])
+    um_ano_atras = pd.Timestamp.today() - pd.DateOffset(months=12)
+    historico = historico[historico['data_geracao'] >= um_ano_atras]
+
+    # --- Atualizando Google Sheet ---
+    sheet.clear()
+    set_with_dataframe(sheet, historico)
+
+    print(f"Arquivo '{arquivo_excel}' carregado com sucesso para {data_geracao}!")
+
+Parte 3: Streamlit
+# app_streamlit.py
+import streamlit as st
+from atualizar_base_ciss import atualizar_base_ciss
+import datetime
+
+st.title("Carregar Relatório CISS para Google Sheet")
+
+# Upload do arquivo
+arquivo = st.file_uploader("Escolha o arquivo Excel", type=['xlsx'])
+
+# Seleção da data de geração
+data_geracao = st.date_input("Data de geração", value=datetime.date.today())
+
+# Botão de upload
+if st.button("Carregar no Google Sheet"):
+    if arquivo is not None:
+        # Salva temporariamente o arquivo
+        with open("temp.xlsx", "wb") as f:
+            f.write(arquivo.getbuffer())
+        
+        # Atualiza a base no Google Sheet
+        atualizar_base_ciss(
+            arquivo_excel="temp.xlsx",
+            nome_planilha="Base_CISS",
+            credenciais_json="credenciais.json",
+            data_geracao=data_geracao
+        )
+        
+        st.success(f"Arquivo '{arquivo.name}' carregado com sucesso para {data_geracao}!")
+    else:
+        st.warning("Por favor, escolha um arquivo Excel primeiro.")
+
+✅ O que conseguimos com isso:
+
+Notebook: simula inputs e mostra passo a passo.
+
+Função .py: modular, reutilizável, pode ser chamada por scheduler.
+
+Streamlit: interface amigável, permite selecionar data, subir arquivo e receber confirmação visual.
+
+Se você quiser, posso melhorar ainda mais a versão do Streamlit para:
+
+mostrar preview dos dados carregados,
+
+listar os últimos 5 arquivos carregados,
+
+e avisar se algum dado do mês mais antigo foi deletado.
+
+Quer que eu faça essa versão avançada?
+
+Você disse:
+Pergunta. A base vai servir para alimentar o looker, as agregações necessárias devem ser feitas nessa ABT forjada no python antes de subir para a nuvem?
+O ChatGPT disse:
+
+Ótima pergunta! 🔍 Vamos analisar cuidadosamente.
+
+Você quer alimentar o Looker (ou outra ferramenta de BI) com a base que estamos criando no Python. A dúvida é: devemos fazer as agregações no Python ou deixar para o Looker?
+
+1️⃣ Quando fazer agregações no Python (antes de subir para a nuvem)
+
+Você faz agregações no Python quando:
+
+Quer reduzir o volume de dados enviado para a nuvem, economizando espaço e tempo de query.
+
+As agregações são fixas e padronizadas, sempre usadas da mesma forma (ex: total diário de vendas).
+
+Quer ter uma ABT (Analytical Base Table) pronta, com todos os cálculos já feitos, que simplifica o trabalho do Looker.
+
+Exemplo de agregações no Python:
+
+# Suponha que df já tem a coluna 'valor' e 'categoria'
+df_agg = df.groupby(['data_geracao', 'categoria']).agg({'valor':'sum'}).reset_index()
+
+
+Isso cria uma tabela resumida, pronta para análises no Looker.
+
+2️⃣ Quando deixar para o Looker
+
+Você deixa os dados “crus” (sem agregação) quando:
+
+Quer flexibilidade total nas análises, diferentes usuários podem precisar de métricas diferentes.
+
+O volume de dados não é tão grande e o Looker pode lidar com a base inteira sem lentidão.
+
+Quer poder explorar todas as dimensões e granularidades depois, sem precisar recriar a ABT.
+
+💡 Resumindo
+
+Dados já agregados no Python → mais rápido, leve, pronto para dashboards padronizados.
+
+Dados crus → mais flexível, Looker faz as agregações dinamicamente.
+
+Sugestão prática:
+
+Mantenha duas tabelas na nuvem:
+
+ciss_raw: todos os dados crus do Excel (histórico completo de 12 meses).
+
+ciss_abt: tabela agregada feita no Python, pronta para dashboards mais rápidos.
+
+Assim você tem flexibilidade e performance ao mesmo tempo.
+
+Se você quiser, posso te mostrar como modificar o pipeline Python/Streamlit para gerar automaticamente a ABT agregada, mantendo os dados crus também. Isso deixaria a base pronta para o Looker sem perder flexibilidade.
+
+Quer que eu faça isso?
+
+Você disse:
+Mostre
+O ChatGPT disse:
+
+Perfeito! Vamos criar um pipeline que gera duas tabelas:
+
+ciss_raw – todos os dados crus, mantendo histórico de 12 meses.
+
+ciss_abt – ABT agregada, pronta para dashboards Looker.
+
+Vou mostrar a versão Python modular, que pode ser usada no .py ou no Streamlit.
+
+1️⃣ Função para atualizar base RAW
+import pandas as pd
+import datetime
+import gspread
+from gspread_dataframe import set_with_dataframe
+
+def atualizar_base_raw(arquivo_excel, nome_planilha, credenciais_json, data_geracao=None):
+    """
+    Atualiza a base RAW do Google Sheet com os dados do Excel.
+    Mantém histórico de 12 meses.
+    """
+    # Lendo Excel
+    df = pd.read_excel(arquivo_excel)
+
+    # Definindo data
+    if data_geracao is None:
+        data_geracao = datetime.date.today()
+    else:
+        data_geracao = pd.to_datetime(data_geracao).date()
+    df['data_geracao'] = data_geracao
+
+    # Conectando ao Google Sheet
+    gc = gspread.service_account(filename=credenciais_json)
+    sheet = gc.open(nome_planilha).sheet1
+
+    # Lendo dados existentes
+    historico = pd.DataFrame(sheet.get_all_records())
+
+    # Concatenando e mantendo últimos 12 meses
+    historico = pd.concat([historico, df], ignore_index=True)
+    historico['data_geracao'] = pd.to_datetime(historico['data_geracao'])
+    um_ano_atras = pd.Timestamp.today() - pd.DateOffset(months=12)
+    historico = historico[historico['data_geracao'] >= um_ano_atras]
+
+    # Atualizando planilha
+    sheet.clear()
+    set_with_dataframe(sheet, historico)
+
+    return historico  # Retorna o dataframe atualizado
+
+2️⃣ Função para gerar ABT agregada
+
+Supondo que queremos agregar por data e categoria, somando valores:
+
+def gerar_abt(df_raw, col_grupo='categoria', col_valor='valor', nome_planilha_abt='CISS_ABT', credenciais_json='credenciais.json'):
+    """
+    Cria a ABT agregada a partir do dataframe RAW e envia para o Google Sheet.
+    """
+    # Agrupando dados
+    df_abt = df_raw.groupby(['data_geracao', col_grupo]).agg({col_valor:'sum'}).reset_index()
+
+    # Conectando ao Google Sheet
+    gc = gspread.service_account(filename=credenciais_json)
+    sheet_abt = gc.open(nome_planilha_abt).sheet1
+
+    # Atualizando planilha ABT
+    sheet_abt.clear()
+    set_with_dataframe(sheet_abt, df_abt)
+
+    return df_abt
+
+3️⃣ Função principal para pipeline completo
+def pipeline_ciss(arquivo_excel, nome_planilha_raw, nome_planilha_abt, credenciais_json, data_geracao=None):
+    """
+    Pipeline completo: atualiza RAW e gera ABT agregada.
+    """
+    # Atualiza base RAW
+    df_raw = atualizar_base_raw(
+        arquivo_excel=arquivo_excel,
+        nome_planilha=nome_planilha_raw,
+        credenciais_json=credenciais_json,
+        data_geracao=data_geracao
+    )
+
+    # Gera ABT agregada
+    df_abt = gerar_abt(
+        df_raw=df_raw,
+        col_grupo='categoria',  # ajuste conforme seu dataframe
+        col_valor='valor',
+        nome_planilha_abt=nome_planilha_abt,
+        credenciais_json=credenciais_json
+    )
+
+    print(f"Pipeline concluído! {arquivo_excel} carregado para RAW e ABT.")
+    return df_raw, df_abt
+
+✅ Como usar no Streamlit
+import streamlit as st
+from pipeline_ciss import pipeline_ciss
+import datetime
+
+st.title("Carregar Relatório CISS com ABT para Looker")
+
+arquivo = st.file_uploader("Escolha o arquivo Excel", type=['xlsx'])
+data_geracao = st.date_input("Data de geração", value=datetime.date.today())
+
+if st.button("Carregar e gerar ABT"):
+    if arquivo is not None:
+        with open("temp.xlsx", "wb") as f:
+            f.write(arquivo.getbuffer())
+
+        df_raw, df_abt = pipeline_ciss(
+            arquivo_excel="temp.xlsx",
+            nome_planilha_raw="CISS_RAW",
+            nome_planilha_abt="CISS_ABT",
+            credenciais_json="credenciais.json",
+            data_geracao=data_geracao
+        )
+
+        st.success(f"Arquivo '{arquivo.name}' carregado com sucesso!")
+        st.write("Últimos registros da ABT:")
+        st.dataframe(df_abt.tail(10))
+    else:
+        st.warning("Por favor, escolha um arquivo Excel primeiro.")
+
+✅ O que conseguimos com isso
+
+Mantemos dados crus (CISS_RAW) para flexibilidade.
+
+Criamos ABT agregada (CISS_ABT) pronta para dashboards Looker.
+
+Histórico sempre limitado a 12 meses.
+
+Streamlit fornece interface amigável para upload e visualização.
+
+Se você quiser, posso fazer uma versão da ABT mais avançada, que:
+
+agrega várias métricas (soma, média, contagem),
+
+calcula KPIs diários,
+
+já prepara campos para Looker,
+
+mantendo flexibilidade para explorar diferentes dimensões.
+
+Quer que eu faça essa versão avançada da ABT?
+
+python tratamento_dados_produto.py
