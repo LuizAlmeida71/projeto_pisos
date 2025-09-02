@@ -10,26 +10,14 @@ from gspread_dataframe import set_with_dataframe
 from google.oauth2.service_account import Credentials
 from dotenv import load_dotenv
 
-# %% 
-os.getcwd()
-#%%
-
 # --- CARREGAR VARIÁVEIS DE AMBIENTE DE FORMA EXPLÍCITA ---
-# Isso garante que o arquivo .env seja lido a partir da pasta do script.
+# Ele garante que o arquivo .env seja lido a partir da pasta do script.
 try:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     dotenv_path = os.path.join(script_dir, '.env')
     load_dotenv(dotenv_path=dotenv_path)
-
-    if os.path.exists(dotenv_path):
-        st.write(f".env encontrado em: {dotenv_path}")
-    else:
-        st.write(f".env NÃO encontrado em: {dotenv_path}")
-
-    st.write("Valor da variável GOOGLE_CREDENTIALS_PATH:", os.getenv("GOOGLE_CREDENTIALS_PATH"))
-
-
 except NameError:
+    # Fallback para ambientes onde __file__ não está definido
     load_dotenv()
 
 # --- FUNÇÕES AUXILIARES ---
@@ -78,7 +66,20 @@ def process_data(file_path):
 
         df['primeiro_nome'] = df['cliente_fornecedor_nomevendedor'].apply(extrair_primeiro_nome)
 
-        df.rename(columns={'produto_retirar_dtmovimento':'dtmovimento','produto_retirar_idlocalretirada':'idlocalretirada','produto_retirar_dtpreventrega':'dtpreventrega','local_retirada_descrlocalretirada':'descrlocalretirada','produtos_view_idsubproduto':'idsubproduto','produtos_view_descricaoproduto':'descricaoproduto','Quantidade Produto':'qtde_produto','Número Nota':'num_nota','Série Nota':'serie_nota','cliente_fornecedor_idclifor':'idclifor','cliente_fornecedor_nome':'fornecedor_nome','estoque_analitico_idvendedor':'idvendedor','cliente_fornecedor_nomevendedor':'nomevendedor'}, inplace=True)
+        df.rename(columns={'produto_retirar_dtmovimento':'dtmovimento',
+                           'produto_retirar_idlocalretirada':'idlocalretirada',
+                           'produto_retirar_dtpreventrega':'dtpreventrega',
+                           'local_retirada_descrlocalretirada':'descrlocalretirada',
+                           'produtos_view_idsubproduto':'idsubproduto',
+                           'produtos_view_descricaoproduto':'descricaoproduto',
+                           'Quantidade Produto':'qtde_produto',
+                           'Número Nota':'num_nota',
+                           'Série Nota':'serie_nota',
+                           'cliente_fornecedor_idclifor':'idclifor',
+                           'cliente_fornecedor_nome':'fornecedor_nome',
+                           'estoque_analitico_idvendedor':'idvendedor',
+                           'cliente_fornecedor_nomevendedor':'nomevendedor'},
+                            inplace=True)
         return df
     except Exception as e:
         st.error(f"Ocorreu um erro ao processar o arquivo: {e}")
