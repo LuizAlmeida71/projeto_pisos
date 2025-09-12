@@ -45,12 +45,12 @@ def find_latest_file(folder_path):
 def process_data(file_path):
     try:
         df = pd.read_excel(file_path)
-        df['produto_retirar_dtpreventrega'] = pd.to_datetime(df['produto_retirar_dtpreventrega'], errors='coerce')
-        df['data_saida'] = df['produto_retirar_dtpreventrega'].dt.date
+        df['dtpreventrega'] = pd.to_datetime(df['dtpreventrega'], errors='coerce')
+        df['data_saida'] = df['dtpreventrega'].dt.date
         df['dias_espera'] = pd.to_datetime(df['data_saida'])
         df['data_saida'] = pd.to_datetime(df['data_saida'])
-        df['produto_retirar_dtmovimento'] = pd.to_datetime(df['produto_retirar_dtmovimento'])
-        df['dias_espera'] = (df['data_saida'] - df['produto_retirar_dtmovimento']).dt.days
+        df['dtmovimento'] = pd.to_datetime(df['dtmovimento'])
+        df['dias_espera'] = (df['data_saida'] - df['dtmovimento']).dt.days
         
         def extrair_primeiro_nome(texto):
             if pd.isna(texto) or texto.strip() == '': return ''
@@ -64,21 +64,12 @@ def process_data(file_path):
             if matches: return matches[0].upper()
             return ''
 
-        df['primeiro_nome'] = df['cliente_fornecedor_nomevendedor'].apply(extrair_primeiro_nome)
+        df['primeiro_nome'] = df['nomevendedor'].apply(extrair_primeiro_nome)
 
-        df.rename(columns={'produto_retirar_dtmovimento':'dtmovimento',
-                           'produto_retirar_idlocalretirada':'idlocalretirada',
-                           'produto_retirar_dtpreventrega':'dtpreventrega',
-                           'local_retirada_descrlocalretirada':'descrlocalretirada',
-                           'produtos_view_idsubproduto':'idsubproduto',
-                           'produtos_view_descricaoproduto':'descricaoproduto',
-                           'Quantidade Produto':'qtde_produto',
-                           'Número Nota':'num_nota',
-                           'Série Nota':'serie_nota',
-                           'cliente_fornecedor_idclifor':'idclifor',
-                           'cliente_fornecedor_nome':'fornecedor_nome',
-                           'estoque_analitico_idvendedor':'idvendedor',
-                           'cliente_fornecedor_nomevendedor':'nomevendedor'},
+        df.rename(columns={'qtdproduto':'qtde_produto',
+                           'numnota':'num_nota',
+                           'serienota':'serie_nota',
+                           'nome':'fornecedor_nome'},
                             inplace=True)
         return df
     except Exception as e:
